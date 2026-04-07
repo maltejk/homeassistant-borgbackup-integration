@@ -1,14 +1,14 @@
 {
   "domain": "borgbackup",
   "name": "BorgBackup",
-  "codeowners": [],
+  "codeowners": ["@maltejk"],
   "config_flow": true,
   "dependencies": [
     "backup"
   ],
-  "documentation": "https://github.com/derolli1976/HomeassistantCloudStash",
+  "documentation": "https://github.com/maltejk/homeassistant-borgbackup-integration",
   "integration_type": "service",
   "iot_class": "local_polling",
-  "issue_tracker": "https://github.com/derolli1976/HomeassistantCloudStash/issues",
+  "issue_tracker": "https://github.com/maltejk/homeassistant-borgbackup-integration/issues",
   "version": "2.0.0"
 }
