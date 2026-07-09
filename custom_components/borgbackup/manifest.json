@@ -1,13 +1,13 @@
 {
   "domain": "borgbackup",
   "name": "BorgBackup",
+  "after_dependencies": [
+    "hassio"
+  ],
   "codeowners": ["@maltejk"],
   "config_flow": true,
   "dependencies": [
     "backup"
-  ],
-  "after_dependencies": [
-    "hassio"
   ],
   "documentation": "https://github.com/maltejk/homeassistant-borgbackup-integration",
   "integration_type": "service",
