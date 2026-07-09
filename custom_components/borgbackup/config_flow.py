@@ -95,6 +95,7 @@ class BorgConfigFlow(ConfigFlow, domain=DOMAIN):
             host = self._hassio_discovery.get(CONF_HOST, f"local-{ADDON_SLUG}")
             port = int(self._hassio_discovery.get(CONF_PORT, DEFAULT_PORT))
             api_key = self._hassio_discovery[CONF_API_KEY]
+            self._async_abort_entries_match({CONF_HOST: host, CONF_PORT: port})
             errors = await self._try_connect(host, port, api_key)
             if not errors:
                 return self.async_create_entry(
@@ -123,6 +124,7 @@ class BorgConfigFlow(ConfigFlow, domain=DOMAIN):
             port = int(user_input[CONF_PORT])
             api_key = user_input[CONF_API_KEY].strip()
 
+            self._async_abort_entries_match({CONF_HOST: host, CONF_PORT: port})
             errors = await self._try_connect(host, port, api_key)
             if not errors:
                 return self.async_create_entry(

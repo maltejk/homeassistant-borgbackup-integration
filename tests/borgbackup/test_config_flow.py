@@ -118,6 +118,22 @@ class TestHassioStep:
         assert result["data"][CONF_HOST] == "local-borgbackup"
         assert result["data"][CONF_API_KEY] == "auto-key"
 
+    async def test_hassio_confirm_duplicate_aborts(self):
+        from homeassistant.data_entry_flow import AbortFlow
+
+        flow = _make_flow()
+        flow._hassio_discovery = {
+            CONF_HOST: "local-borgbackup",
+            CONF_PORT: 8774,
+            CONF_API_KEY: "auto-key",
+        }
+        flow._async_abort_entries_match = MagicMock(
+            side_effect=AbortFlow("already_configured")
+        )
+        with pytest.raises(AbortFlow):
+            await flow.async_step_hassio_confirm(user_input={})
+        flow._async_abort_entries_match.assert_called_once()
+
     async def test_hassio_confirm_auth_error_shows_form(self):
         flow = _make_flow()
         flow._hassio_discovery = {
@@ -172,6 +188,23 @@ class TestUserStep:
             result = await flow.async_step_user(user_input=_GOOD_INPUT)
 
         assert "local-borgbackup" in result["title"]
+
+    async def test_duplicate_host_port_aborts(self):
+        from homeassistant.data_entry_flow import AbortFlow
+
+        flow = _make_flow()
+        flow._async_abort_entries_match = MagicMock(
+            side_effect=AbortFlow("already_configured")
+        )
+        with patch(
+            "custom_components.borgbackup.config_flow.BorgAddonClient.health_check",
+            new_callable=AsyncMock,
+        ) as mock_hc:
+            with pytest.raises(AbortFlow):
+                await flow.async_step_user(user_input=_GOOD_INPUT)
+        # Guard must run before we bother contacting the add-on.
+        flow._async_abort_entries_match.assert_called_once()
+        mock_hc.assert_not_called()
 
     async def test_auth_error_shows_form_with_error(self):
         flow = _make_flow()
