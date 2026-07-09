@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Manifest** — declare `hassio` in `after_dependencies` (the config flow imports
   `homeassistant.components.hassio` for Supervisor discovery), fixing the hassfest
   `[DEPENDENCIES]` validation error.
+- **Discovery unique ID** — the Supervisor discovery step now calls
+  `async_set_unique_id` (host+port) and aborts if already configured, clearing the
+  hassfest `[CONFIG_FLOW]` warning and preventing repeated discovery prompts.
 
 ## [2.0.0] - 2026-04-06
 

@@ -45,6 +45,7 @@ def _make_flow(hass: MagicMock | None = None) -> BorgConfigFlow:
     flow._hassio_discovery = {}
     flow._abort_if_unique_id_configured = MagicMock()
     flow._async_abort_entries_match = MagicMock()
+    flow.async_set_unique_id = AsyncMock()
     flow.async_create_entry = MagicMock(
         side_effect=lambda title, data: {"title": title, "data": data}
     )
@@ -87,6 +88,21 @@ class TestHassioStep:
         with patch.object(flow, "async_step_hassio_confirm", new=AsyncMock(return_value={"type": "form"})) as mock_confirm:
             await flow.async_step_hassio(discovery_info)
             mock_confirm.assert_awaited_once()
+
+    async def test_hassio_step_sets_unique_id(self):
+        flow = _make_flow()
+        discovery_info = MagicMock()
+        discovery_info.config = {
+            CONF_HOST: "local-borgbackup",
+            CONF_PORT: 8774,
+            CONF_API_KEY: "auto-key",
+        }
+
+        with patch.object(flow, "async_step_hassio_confirm", new=AsyncMock(return_value={"type": "form"})):
+            await flow.async_step_hassio(discovery_info)
+
+        flow.async_set_unique_id.assert_awaited_once_with("local-borgbackup:8774")
+        flow._abort_if_unique_id_configured.assert_called_once()
 
     async def test_hassio_confirm_shows_form_without_input(self):
         flow = _make_flow()

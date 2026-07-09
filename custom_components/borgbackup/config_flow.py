@@ -84,6 +84,10 @@ class BorgConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Called by the Supervisor when the add-on publishes discovery info."""
         self._hassio_discovery = discovery_info.config
+        host = self._hassio_discovery.get(CONF_HOST, f"local-{ADDON_SLUG}")
+        port = int(self._hassio_discovery.get(CONF_PORT, DEFAULT_PORT))
+        await self.async_set_unique_id(f"{host}:{port}")
+        self._abort_if_unique_id_configured()
         return await self.async_step_hassio_confirm()
 
     async def async_step_hassio_confirm(
