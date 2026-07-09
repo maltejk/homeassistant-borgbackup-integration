@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Duplicate config entries** — both the manual setup and the Supervisor
   discovery confirmation now call `_async_abort_entries_match` on `host`+`port`
   before contacting the add-on, so the same add-on can no longer be added twice.
+- **Manifest** — declare `hassio` in `after_dependencies` (the config flow imports
+  `homeassistant.components.hassio` for Supervisor discovery), fixing the hassfest
+  `[DEPENDENCIES]` validation error.
 
 ## [2.0.0] - 2026-04-06
 
