@@ -104,6 +104,23 @@ class TestHassioStep:
         flow.async_set_unique_id.assert_awaited_once_with("local-borgbackup:8774")
         flow._abort_if_unique_id_configured.assert_called_once()
 
+    async def test_hassio_step_updates_key_on_rediscovery(self):
+        """A reinstalled add-on publishes a new key at the same host:port —
+        the existing entry must be updated, not left with a dead key."""
+        flow = _make_flow()
+        discovery_info = MagicMock()
+        discovery_info.config = {
+            CONF_HOST: "local-borgbackup",
+            CONF_PORT: 8774,
+            CONF_API_KEY: "rotated-key",
+        }
+
+        with patch.object(flow, "async_step_hassio_confirm", new=AsyncMock(return_value={"type": "form"})):
+            await flow.async_step_hassio(discovery_info)
+
+        call_kwargs = flow._abort_if_unique_id_configured.call_args[1]
+        assert call_kwargs["updates"] == {CONF_API_KEY: "rotated-key"}
+
     async def test_hassio_confirm_shows_form_without_input(self):
         flow = _make_flow()
         flow._hassio_discovery = {
@@ -194,6 +211,19 @@ class TestUserStep:
         assert result["data"][CONF_HOST] == "local-borgbackup"
         assert result["data"][CONF_PORT] == 8774
         assert result["data"][CONF_API_KEY] == "test-api-key-abc123"
+
+    async def test_sets_unique_id_matching_discovery_scheme(self):
+        """A manually-created entry needs the same host:port unique_id
+        discovery uses, or a later discovery message for the same add-on
+        can't find it to update its key."""
+        flow = _make_flow()
+        with patch(
+            "custom_components.borgbackup.config_flow.BorgAddonClient.health_check",
+            new_callable=AsyncMock,
+        ):
+            await flow.async_step_user(user_input=_GOOD_INPUT)
+
+        flow.async_set_unique_id.assert_awaited_once_with("local-borgbackup:8774")
 
     async def test_entry_title_includes_host(self):
         flow = _make_flow()
