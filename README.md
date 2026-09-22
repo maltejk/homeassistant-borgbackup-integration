@@ -98,8 +98,9 @@ INFO  Generated API key: <key>
 | Download backup | Streams a backup back for restore                    |
 | Delete backup   | Removes a backup archive from Borg                   |
 
-Pruning (keep-daily / keep-weekly / keep-monthly) is configured in the add-on and
-runs automatically after each upload.
+Home Assistant manages backup retention itself; the add-on's own keep-daily /
+keep-weekly / keep-monthly pruning is off by default and only useful as an extra
+safety net (configured in the add-on, not here).
 
 ---
 
@@ -107,6 +108,10 @@ runs automatically after each upload.
 
 Each backup is a Borg archive named `ha-<backup-id>`. The full HA metadata dict is
 stored as JSON in the archive comment — no sidecar files, no extra storage overhead.
+
+For deduplication/compression to actually work, disable Home Assistant's own backup
+encryption for this location and rely on the add-on's Borg `repokey` encryption
+instead — see the add-on README's "Encryption" section for why.
 
 ---
 
