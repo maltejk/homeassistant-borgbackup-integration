@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-09-22
+
+### Fixed
+
+- **Large uploads/downloads no longer die at 300 seconds** — `upload_backup`/
+  `download_backup` now use a `ClientTimeout` with no overall deadline
+  (bounded instead by a 30s connect timeout and a 3600s read timeout), since
+  the add-on only responds once the transfer has actually finished.
+- `TimeoutError` is now caught in every `BorgAddonClient` method and mapped
+  to `AddonConnectionError`; previously it wasn't an `aiohttp.ClientError`
+  and ran as an unhandled exception straight through `_wrap_addon_errors`.
+- `download_backup`'s response is now released (`resp.release()`) once the
+  stream is exhausted or fails, instead of leaking the connection; an error
+  raised mid-stream is now translated to `BackupAgentError` for the caller
+  instead of leaking a raw `aiohttp` exception.
+- **Rediscovering the add-on after it's reinstalled now updates the stored
+  API key** instead of leaving the entry with the old, now-invalid one and
+  forcing a manual reauth. A manually-configured entry now also gets the
+  same `host:port` unique ID discovery uses, so the two stay in sync.
+
+### Removed
+
+- Dead duplicate `async_get_backup_agents`/`async_register_backup_agents_listener`
+  in `__init__.py` — HA's backup platform loader only ever called the copies
+  in `backup.py`.
+
+### Changed
+
+- CI now also runs the test suite on Python 3.13 (previously 3.14 only);
+  `hassfest`/`hacs/action` are pinned to a commit SHA instead of floating
+  branches.
+
 ## [2.0.1] - 2026-07-09
 
 ### Fixed
