@@ -1,8 +1,7 @@
 #
 # Tests for BorgBackup – __init__.py
 #
-# Unit tests for BorgAddonClient HTTP calls, entry setup/teardown, and the
-# agent-listener subscribe/unsubscribe mechanism.
+# Unit tests for BorgAddonClient HTTP calls and entry setup/teardown.
 #
 # To run: pytest tests/borgbackup/test_init.py
 #
@@ -27,13 +26,10 @@ from custom_components.borgbackup import (
     AddonNotFoundError,
     AddonServerError,
     BorgAddonClient,
-    async_get_backup_agents,
-    async_register_backup_agents_listener,
     async_setup_entry,
     async_unload_entry,
 )
 from custom_components.borgbackup.const import (
-    AGENT_LISTENER_KEY,
     CONF_API_KEY,
     CONF_HOST,
     CONF_PORT,
@@ -583,60 +579,9 @@ class TestAsyncUnloadEntry:
         entry.runtime_data.teardown = AsyncMock()
         entry.runtime_data.teardown.assert_not_called()
 
-
-# ---------------------------------------------------------------------------
-# async_get_backup_agents
-# ---------------------------------------------------------------------------
-
-
-class TestGetBackupAgents:
-    """Tests for async_get_backup_agents."""
-
-    async def test_returns_one_agent_per_entry(self, sample_config):
-        hass = _make_hass()
-        entry1 = _make_entry(sample_config)
-        entry1.runtime_data = MagicMock()
-        entry2 = _make_entry({**sample_config, "host": "local-borgbackup-2"})
-        entry2.runtime_data = MagicMock()
-        hass.config_entries.async_loaded_entries.return_value = [entry1, entry2]
-        agents = await async_get_backup_agents(hass)
-        assert len(agents) == 2
-
-    async def test_returns_empty_when_no_entries(self):
-        hass = _make_hass()
-        agents = await async_get_backup_agents(hass)
-        assert agents == []
-
-
-# ---------------------------------------------------------------------------
-# async_register_backup_agents_listener
-# ---------------------------------------------------------------------------
-
-
-class TestRegisterAgentsListener:
-    """Tests for the subscribe / unsubscribe pattern."""
-
-    def test_subscribe_stores_listener(self):
-        hass = _make_hass()
-        cb = MagicMock()
-        async_register_backup_agents_listener(hass, listener=cb)
-        assert cb in hass.data[AGENT_LISTENER_KEY]
-
-    def test_unsubscribe_removes_listener(self):
-        hass = _make_hass()
-        cb = MagicMock()
-        unsub = async_register_backup_agents_listener(hass, listener=cb)
-        unsub()
-        assert AGENT_LISTENER_KEY not in hass.data
-
-    def test_unsubscribe_leaves_other_listeners(self):
-        hass = _make_hass()
-        cb1 = MagicMock()
-        cb2 = MagicMock()
-        unsub1 = async_register_backup_agents_listener(hass, listener=cb1)
-        async_register_backup_agents_listener(hass, listener=cb2)
-        unsub1()
-        assert cb2 in hass.data[AGENT_LISTENER_KEY]
-        assert cb1 not in hass.data[AGENT_LISTENER_KEY]
+    # async_get_backup_agents / async_register_backup_agents_listener were
+    # removed from this module (dead code — HA's backup platform loader only
+    # ever called the copies in backup.py); their tests live in
+    # tests/borgbackup/test_backup.py::TestAgentModuleHelpers.
 
 

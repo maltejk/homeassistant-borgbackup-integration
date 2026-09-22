@@ -266,39 +266,3 @@ async def async_unload_entry(hass: HomeAssistant, entry: BorgEntry) -> bool:
     """Unload a BorgBackup config entry."""
     # No local resources to clean up — the add-on runs independently.
     return True
-
-
-# ---------------------------------------------------------------------------
-# Module-level backup integration hooks
-# ---------------------------------------------------------------------------
-
-
-async def async_get_backup_agents(
-    hass: HomeAssistant,
-    **kwargs: Any,
-) -> list[Any]:
-    """Return one agent per loaded config entry."""
-    from .backup import BorgBackupAgent  # late import avoids circular dependency
-
-    entries: list[BorgEntry] = hass.config_entries.async_loaded_entries(DOMAIN)
-    return [BorgBackupAgent(hass, e) for e in entries]
-
-
-@callback
-def async_register_backup_agents_listener(
-    hass: HomeAssistant,
-    *,
-    listener: Callable[[], None],
-    **kwargs: Any,
-) -> Callable[[], None]:
-    """Subscribe to agent add/remove notifications; returns an unsubscribe handle."""
-    listeners = hass.data.setdefault(AGENT_LISTENER_KEY, [])
-    listeners.append(listener)
-
-    @callback
-    def _unsubscribe() -> None:
-        listeners.remove(listener)
-        if not listeners:
-            del hass.data[AGENT_LISTENER_KEY]
-
-    return _unsubscribe

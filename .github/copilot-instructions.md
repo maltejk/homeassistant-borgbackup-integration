@@ -87,7 +87,7 @@ CI runs pytest (Python 3.12 and 3.13 matrix), hassfest (HA manifest validation),
 - `strings.json` steps require both `data` (field labels) and `data_description` (help text per field) — add both when introducing new fields.
 - The add-on is **required**; there is no subprocess fallback. If the add-on is unreachable, raise `ConfigEntryNotReady` (handled in `async_setup_entry`).
 - If the add-on becomes unreachable mid-session the listing cache remains valid for up to 300 s (`LISTING_CACHE_SECONDS`). Subsequent `async_list_backups()` calls will return stale data and will not re-attempt until the cache expires or `_drop_cache()` is called.
-- `async_get_backup_agents` and `async_register_backup_agents_listener` are **intentionally duplicated** in both `__init__.py` and `backup.py`. HA calls both modules; keep them in sync when modifying the listener pattern.
+- `async_get_backup_agents` and `async_register_backup_agents_listener` live only in `backup.py` — HA's backup platform loader calls that module specifically, not `__init__.py`. A previous duplicate copy in `__init__.py` was dead code and has been removed; don't reintroduce it.
 - Agent availability changes are propagated via `entry.async_on_state_change(_propagate_state_change)`, which fires all callbacks registered in `hass.data[AGENT_LISTENER_KEY]`. This is how HA's backup UI learns a new agent is ready.
 
 ## Reference Docs
