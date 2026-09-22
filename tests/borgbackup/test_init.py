@@ -318,6 +318,50 @@ class TestUploadBackup:
                     open_stream=lambda: _stream(),
                 )
 
+    async def test_timeout_error_raises_connection_error(self, sample_config):
+        hass = _make_hass()
+        client = BorgAddonClient(hass=hass, **sample_config)
+        mock_session = MagicMock()
+        mock_session.post = AsyncMock(side_effect=TimeoutError("stalled"))
+
+        async def _stream():
+            yield b"x"
+
+        with patch(
+            "custom_components.borgbackup.async_get_clientsession",
+            return_value=mock_session,
+        ):
+            with pytest.raises(AddonConnectionError):
+                await client.upload_backup(
+                    backup_id="bkp1",
+                    backup_meta="{}",
+                    open_stream=lambda: _stream(),
+                )
+
+    async def test_uses_transfer_timeout_with_no_total_deadline(self, sample_config):
+        """A large upload must not be killed by aiohttp's 300s default."""
+        hass = _make_hass()
+        client = BorgAddonClient(hass=hass, **sample_config)
+        mock_resp = _make_mock_response(201)
+        mock_session = MagicMock()
+        mock_session.post = AsyncMock(return_value=mock_resp)
+
+        async def _stream():
+            yield b"x"
+
+        with patch(
+            "custom_components.borgbackup.async_get_clientsession",
+            return_value=mock_session,
+        ):
+            await client.upload_backup(
+                backup_id="bkp1",
+                backup_meta="{}",
+                open_stream=lambda: _stream(),
+            )
+
+        timeout = mock_session.post.call_args[1]["timeout"]
+        assert timeout.total is None
+
 
 # ---------------------------------------------------------------------------
 # BorgAddonClient – download_backup
@@ -361,6 +405,68 @@ class TestDownloadBackup:
         ):
             with pytest.raises(AddonNotFoundError):
                 await client.download_backup("missing")
+
+    async def test_timeout_error_raises_connection_error(self, sample_config):
+        hass = _make_hass()
+        client = BorgAddonClient(hass=hass, **sample_config)
+        mock_session = MagicMock()
+        mock_session.get = AsyncMock(side_effect=TimeoutError("stalled"))
+        with patch(
+            "custom_components.borgbackup.async_get_clientsession",
+            return_value=mock_session,
+        ):
+            with pytest.raises(AddonConnectionError):
+                await client.download_backup("bkp1")
+
+    async def test_uses_transfer_timeout_with_no_total_deadline(self, sample_config):
+        hass = _make_hass()
+        client = BorgAddonClient(hass=hass, **sample_config)
+        mock_resp = MagicMock()
+        mock_resp.status = 200
+        mock_resp.content = MagicMock()
+        mock_resp.content.iter_chunked = MagicMock(side_effect=lambda n: iter(()))
+        mock_session = MagicMock()
+        mock_session.get = AsyncMock(return_value=mock_resp)
+
+        with patch(
+            "custom_components.borgbackup.async_get_clientsession",
+            return_value=mock_session,
+        ):
+            await client.download_backup("bkp1")
+
+        timeout = mock_session.get.call_args[1]["timeout"]
+        assert timeout.total is None
+
+    async def test_release_and_error_translation_on_stream_failure(
+        self, sample_config
+    ):
+        """A dropped connection mid-download must release resp and raise
+        AddonConnectionError instead of leaking a raw aiohttp exception."""
+        hass = _make_hass()
+        client = BorgAddonClient(hass=hass, **sample_config)
+        mock_resp = MagicMock()
+        mock_resp.status = 200
+
+        async def _chunks(n):
+            yield b"partial"
+            raise aiohttp.ClientPayloadError("connection reset")
+
+        mock_resp.content = MagicMock()
+        mock_resp.content.iter_chunked = MagicMock(side_effect=_chunks)
+        mock_resp.release = MagicMock()
+        mock_session = MagicMock()
+        mock_session.get = AsyncMock(return_value=mock_resp)
+
+        with patch(
+            "custom_components.borgbackup.async_get_clientsession",
+            return_value=mock_session,
+        ):
+            stream = await client.download_backup("bkp1")
+            with pytest.raises(AddonConnectionError):
+                async for _chunk in stream:
+                    pass
+
+        mock_resp.release.assert_called_once()
 
 
 # ---------------------------------------------------------------------------

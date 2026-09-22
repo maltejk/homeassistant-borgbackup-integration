@@ -23,6 +23,14 @@ from .const import (
     CONF_HOST,
     CONF_PORT,
     DOMAIN,
+    TRANSFER_SOCK_CONNECT_TIMEOUT,
+    TRANSFER_SOCK_READ_TIMEOUT,
+)
+
+_TRANSFER_TIMEOUT = aiohttp.ClientTimeout(
+    total=None,
+    sock_connect=TRANSFER_SOCK_CONNECT_TIMEOUT,
+    sock_read=TRANSFER_SOCK_READ_TIMEOUT,
 )
 
 _LOG = logging.getLogger(__name__)
@@ -116,7 +124,7 @@ class BorgAddonClient:
             resp = await session.get(
                 f"{self._base_url}/api/health", headers=self._headers()
             )
-        except aiohttp.ClientError as exc:
+        except (aiohttp.ClientError, TimeoutError) as exc:
             raise AddonConnectionError(str(exc)) from exc
         body = await resp.text()
         self._raise_for_status(resp.status, body)
@@ -128,7 +136,7 @@ class BorgAddonClient:
             resp = await session.get(
                 f"{self._base_url}/api/backups", headers=self._headers()
             )
-        except aiohttp.ClientError as exc:
+        except (aiohttp.ClientError, TimeoutError) as exc:
             raise AddonConnectionError(str(exc)) from exc
         body = await resp.text()
         self._raise_for_status(resp.status, body)
@@ -164,8 +172,9 @@ class BorgAddonClient:
                 f"{self._base_url}/api/backups",
                 headers=headers,
                 data=_body(),
+                timeout=_TRANSFER_TIMEOUT,
             )
-        except aiohttp.ClientError as exc:
+        except (aiohttp.ClientError, TimeoutError) as exc:
             raise AddonConnectionError(str(exc)) from exc
         body = await resp.text()
         self._raise_for_status(resp.status, body)
@@ -177,16 +186,22 @@ class BorgAddonClient:
             resp = await session.get(
                 f"{self._base_url}/api/backups/{backup_id}",
                 headers=self._headers(),
+                timeout=_TRANSFER_TIMEOUT,
             )
-        except aiohttp.ClientError as exc:
+        except (aiohttp.ClientError, TimeoutError) as exc:
             raise AddonConnectionError(str(exc)) from exc
         if resp.status != 200:
             body = await resp.text()
             self._raise_for_status(resp.status, body)
 
         async def _iter() -> AsyncIterator[bytes]:
-            async for chunk in resp.content.iter_chunked(_CHUNK):
-                yield chunk
+            try:
+                async for chunk in resp.content.iter_chunked(_CHUNK):
+                    yield chunk
+            except (aiohttp.ClientError, TimeoutError) as exc:
+                raise AddonConnectionError(str(exc)) from exc
+            finally:
+                resp.release()
 
         return _iter()
 
@@ -198,7 +213,7 @@ class BorgAddonClient:
                 f"{self._base_url}/api/backups/{backup_id}",
                 headers=self._headers(),
             )
-        except aiohttp.ClientError as exc:
+        except (aiohttp.ClientError, TimeoutError) as exc:
             raise AddonConnectionError(str(exc)) from exc
         if resp.status != 204:
             body = await resp.text()

@@ -130,7 +130,23 @@ class BorgBackupAgent(BackupAgent):
     ) -> AsyncIterator[bytes]:
         """Stream a backup archive from the Borg repository via the add-on."""
         await self._resolve(backup_id)  # raises BackupNotFound if missing
-        return await self._client.download_backup(backup_id)
+        stream = await self._client.download_backup(backup_id)
+
+        # `_wrap_addon_errors` only covers this coroutine's own execution, not
+        # the caller's later iteration of the stream it returns — translate
+        # an AddonError raised mid-stream (e.g. the connection dropping)
+        # here too, or it would reach HA's backup manager untranslated.
+        async def _wrapped() -> AsyncIterator[bytes]:
+            try:
+                async for chunk in stream:
+                    yield chunk
+            except AddonError as exc:
+                raise BackupAgentError(
+                    translation_domain=DOMAIN,
+                    translation_key="cannot_connect",
+                ) from exc
+
+        return _wrapped()
 
     @_wrap_addon_errors
     async def async_upload_backup(

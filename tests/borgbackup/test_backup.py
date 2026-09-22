@@ -303,6 +303,27 @@ class TestDownloadBackup:
         with pytest.raises(BackupNotFound):
             await agent.async_download_backup("missing")
 
+    async def test_error_during_stream_is_translated(self, mock_addon_client):
+        """AddonError raised while iterating the stream (not while obtaining
+        it) must still become a BackupAgentError — _wrap_addon_errors alone
+        doesn't cover this because it only guards the initial call."""
+        from homeassistant.components.backup import BackupAgentError
+
+        agent = _make_agent(mock_addon_client)
+        agent._listing = {"b1": MagicMock(backup_id="b1")}
+        agent._listing_valid_until = monotonic() + 999
+
+        async def _iter():
+            yield b"partial"
+            raise AddonConnectionError("dropped")
+
+        mock_addon_client.download_backup.return_value = _iter()
+
+        stream = await agent.async_download_backup("b1")
+        with pytest.raises(BackupAgentError):
+            async for _chunk in stream:
+                pass
+
 
 # ---------------------------------------------------------------------------
 # BorgBackupAgent – delete
