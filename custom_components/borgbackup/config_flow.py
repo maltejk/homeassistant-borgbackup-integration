@@ -87,15 +87,15 @@ class BorgConfigFlow(ConfigFlow, domain=DOMAIN):
         host = self._hassio_discovery.get(CONF_HOST, f"local-{ADDON_SLUG}")
         port = int(self._hassio_discovery.get(CONF_PORT, DEFAULT_PORT))
         api_key = self._hassio_discovery.get(CONF_API_KEY)
+        if not api_key:
+            return self.async_abort(reason="discovery_missing_api_key")
         await self.async_set_unique_id(f"{host}:{port}")
         # A reinstalled add-on generates a new API key but keeps the same
         # host/port, so re-discovery would otherwise abort with
         # already_configured while the existing entry is left holding a key
         # that no longer works, forcing a manual reauth. Updating the entry
         # here keeps it working without user action.
-        self._abort_if_unique_id_configured(
-            updates={CONF_API_KEY: api_key} if api_key else None
-        )
+        self._abort_if_unique_id_configured(updates={CONF_API_KEY: api_key})
         return await self.async_step_hassio_confirm()
 
     async def async_step_hassio_confirm(
@@ -106,7 +106,9 @@ class BorgConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             host = self._hassio_discovery.get(CONF_HOST, f"local-{ADDON_SLUG}")
             port = int(self._hassio_discovery.get(CONF_PORT, DEFAULT_PORT))
-            api_key = self._hassio_discovery[CONF_API_KEY]
+            api_key = self._hassio_discovery.get(CONF_API_KEY)
+            if not api_key:
+                return self.async_abort(reason="discovery_missing_api_key")
             self._async_abort_entries_match({CONF_HOST: host, CONF_PORT: port})
             errors = await self._try_connect(host, port, api_key)
             if not errors:
