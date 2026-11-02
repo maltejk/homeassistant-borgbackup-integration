@@ -51,7 +51,8 @@
     },
     "abort": {
       "already_configured": "The BorgBackup add-on is already configured.",
-      "reauth_successful": "API key updated successfully."
+      "reauth_successful": "API key updated successfully.",
+      "discovery_missing_api_key": "The add-on's discovery message did not include an API key. Update the add-on and restart it, or set up the connection manually."
     }
   },
   "exceptions": {

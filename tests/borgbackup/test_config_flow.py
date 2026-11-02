@@ -55,6 +55,9 @@ def _make_flow(hass: MagicMock | None = None) -> BorgConfigFlow:
     flow.async_update_reload_and_abort = MagicMock(
         side_effect=lambda *a, **kw: {"type": "abort", "reason": "reconfigured"}
     )
+    flow.async_abort = MagicMock(
+        side_effect=lambda reason, **kw: {"type": "abort", "reason": reason}
+    )
     flow.add_suggested_values_to_schema = MagicMock(
         side_effect=lambda schema, values: schema
     )
@@ -120,6 +123,33 @@ class TestHassioStep:
 
         call_kwargs = flow._abort_if_unique_id_configured.call_args[1]
         assert call_kwargs["updates"] == {CONF_API_KEY: "rotated-key"}
+
+    async def test_hassio_step_aborts_when_api_key_missing(self):
+        """A malformed/stale discovery message without an api_key must fail
+        loudly instead of silently reaching an entry with a blank key."""
+        flow = _make_flow()
+        discovery_info = MagicMock()
+        discovery_info.config = {
+            CONF_HOST: "local-borgbackup",
+            CONF_PORT: 8774,
+        }
+
+        result = await flow.async_step_hassio(discovery_info)
+
+        assert result == {"type": "abort", "reason": "discovery_missing_api_key"}
+        flow.async_set_unique_id.assert_not_awaited()
+        flow._abort_if_unique_id_configured.assert_not_called()
+
+    async def test_hassio_confirm_aborts_when_api_key_missing(self):
+        flow = _make_flow()
+        flow._hassio_discovery = {
+            CONF_HOST: "local-borgbackup",
+            CONF_PORT: 8774,
+        }
+
+        result = await flow.async_step_hassio_confirm(user_input={})
+
+        assert result == {"type": "abort", "reason": "discovery_missing_api_key"}
 
     async def test_hassio_confirm_shows_form_without_input(self):
         flow = _make_flow()
